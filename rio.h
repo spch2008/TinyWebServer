@@ -17,6 +17,7 @@ typedef struct
 }rio_t;
 
 static void unixt_error(const char *err);
+static int min(int, int);
 
 static size_t rio_readn(int fd, void *usrbuf, size_t size);
 static int   rio_writen(int fd, void *usrbuf, size_t size);

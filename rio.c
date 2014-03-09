@@ -1,9 +1,14 @@
 #include "rio.h"
 
 
-static void unixt_error(const char *err)
+void unix_error(const char *err)
 {
     perror(err);
+}
+
+int min(int a, int b)
+{
+	return a > b ? b : a;
 }
 
 /* rio_readn instead of read, but safe */
@@ -12,23 +17,25 @@ size_t rio_readn(int fd, void *usrbuf, size_t size)
     char *bufp  = usrbuf;
     int   leftn = size;
     int   readn;
+	
     
     while (leftn > 0) {
         if ((readn = read(fd, bufp, size)) < 0) {
             if (readn == EINTR)
                 readn = 0;
-            else
+            else 
                 return readn;
-        
         } else if (readn == 0) {
-            break;
+			break;
             
         } else {
             leftn -= readn;
             bufp  += readn;
         }
+		
+		// tmp imerge handle
+		break;
     }
-    
     return size - leftn;
 }
 
@@ -43,7 +50,7 @@ int rio_writen(int fd, void *usrbuf, size_t size)
         if ((writen = write(fd, bufp, size)) <= 0) {
             if (writen == EINTR) 
                 writen = 0;
-            else
+            else 
                 return writen;
                 
         } else {
@@ -64,19 +71,22 @@ void rio_init(rio_t *r, int fd)
 size_t rio_read(rio_t *r, void *usrbuf, size_t size)
 {
     int cnt;
-    
+   
     if (r->rio_cnt <= 0) {
         r->rio_cnt = rio_readn(r->rio_fd, r->rio_buf, sizeof(r->rio_buf));
         if (r->rio_cnt < 0)
             return r->rio_cnt;
         
         r->rio_bufp = r->rio_buf;
+        
+        //printf("NO Data ERROR, rio_read\n");
     }
     
     cnt = min(size, r->rio_cnt);
     memcpy(usrbuf, r->rio_bufp, cnt);
     r->rio_cnt  -= cnt;
     r->rio_bufp += cnt;
+    
     
     return cnt;
 }
@@ -103,16 +113,19 @@ size_t rio_readnb(rio_t *r, void *usrbuf, size_t size)
 
 size_t rio_readlineb(rio_t *r, void *usrbuf, size_t maxlen)
 {
+	
     int i, cnt;
     char c;
     char *bufp = usrbuf;
     
-    // '\n' need one slot, so maxlen - 1
+    // '\0' need one slot , so maxlen - 1
     for (i = 0; i < maxlen - 1; i++) {
         if ((cnt = rio_read(r, &c, 1)) == 1) {
             *bufp++ = c;
-            if (c == '\n')
-                break;
+            if (c == '\n') { 
+                *bufp++ = '\0';
+                break; 
+            }
                 
         } else if (cnt == 0) {
             if (i == 0)  // no data
